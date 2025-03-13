@@ -1,0 +1,95 @@
+##
+# buildspec.yaml
+# CodeBuild build specification; mainly re-inits the source (for pipeline), init components, and performs the requested
+# action.
+# @see https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html
+##
+# yamllint disable rule:indentation
+---
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    CODECOMMIT_BASE_URL: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/
+    AL2_CIS_COMMIT_ID: '248689804ca1cb4d058a688f42060530b8ac6239'
+    PACKER_VERSION: '1.9.4'
+    PACKER_FILE: 'pipeline.json'
+    REPOSITORY_NAME: 'packer-al2-cis'
+
+phases:
+  install:
+    runtime-versions:
+      docker: 18
+
+    commands:
+      # Used for debug purposes, show who is running this script.
+      - aws sts get-caller-identity
+
+      # Import SSH build key and reinitialize repository for CodePipeline
+      - |
+        if [ ! -d ".git" ]; then
+          git config --global credential.helper '!aws codecommit credential-helper $@'
+          git config --global credential.UseHttpPath true
+
+          git init
+          git remote add origin "${CODECOMMIT_BASE_URL}${REPOSITORY_NAME}" || true
+          git fetch 2>&1 > /dev/null
+          git reset --hard $CODEBUILD_RESOLVED_SOURCE_VERSION
+
+          rm -rf playbooks/common
+          rm -rf roles/AmazonLinux-2-CIS
+          git submodule update --init --recursive 2>&1 > /dev/null
+        fi
+
+      # Install pip pre-requisites.
+      - export PATH=$PATH:/root/.local/bin
+      - pip install -r requirements.txt
+
+      # Install Packer.
+      - |
+        if ! [ -x "$(command -v wget)" ]; then
+          yum install -y wget
+        fi
+      - wget -q https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip
+      - unzip -q packer_${PACKER_VERSION}_linux_amd64.zip
+      - export PATH=/usr/local/bin:$PATH
+      - mv packer /usr/local/bin/packer
+      - packer version
+
+      # Validate the packer pipeline file.
+      - make verify
+
+  pre_build:
+    commands:
+      # Grab the tag describing this release. This will fail if there is no tag
+      # associated with this release. This is expected to fail whenever an
+      # automatic tag is done, as the first commit that someone does would not
+      # have any tag associated to it.
+      - |
+        if [ "$TARGET_ENV" == "int" ]; then
+          TAG=int
+        elif [ "$ACTION" == "init" ] || [ "$PUBLISH" == "1" ]; then
+          TAG=$(git describe "$CODEBUILD_RESOLVED_SOURCE_VERSION")
+        else
+          echo "Done; nothing to pre_build."
+        fi
+
+  build:
+    commands:
+      - |
+        if [ "$ACTION" == "init" ]; then
+          echo "Done; nothing to build with initialization."
+        elif [ "$REDEPLOY" == "1" ]; then
+          make redeploy
+        elif [ "$PUBLISH" == "1" ]; then
+          make publish_all
+        elif [ "$TARGET_ENV" == "int" ]; then
+          PACKER_FILE=local.json make build_all
+        else
+          make build_all
+        fi
+
+artifacts:
+  files:
+    - '**/*'

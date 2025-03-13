@@ -1,0 +1,101 @@
+{
+  "variables": {
+    "assume_role_arn": "",
+    "skip_create_ami": "true",
+    "ami_prefix": "ss-al2023-cis-",
+    "base_ami": "al2023-ami-2023.6.20241121.0-kernel-6.1-x86_64",
+    "instance_type": "t3.large",
+    "yum_update": "true",
+    "pre_userdata": "false",
+    "enable_fips": "0"
+  },
+
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "skip_create_ami": "{{ user `skip_create_ami` }}",
+      "region": "us-east-1",
+      "source_ami_filter": {
+        "filters": {
+          "name": "{{ user `base_ami` }}"
+        },
+        "owners": [
+          "amazon"
+        ],
+        "most_recent": true
+      },
+      "instance_type": "{{ user `instance_type` }}",
+      "ssh_username": "ec2-user",
+      "ssh_timeout": "6m",
+      "vpc_filter": {
+        "filters": {
+          "tag:Name": "use1-admin-builds",
+          "isDefault": "false"
+        }
+      },
+      "subnet_filter": {
+        "filters": {
+          "tag:scope": "private"
+        },
+        "most_free": true,
+        "random": false
+      },
+      "ami_name": "{{ user `ami_prefix` }}{{ isotime | clean_resource_name }}",
+      "ami_org_arns": "arn:aws:organizations::147731896199:organization/o-gvz4tt92w2",
+      "ami_regions": [
+        "us-west-2",
+        "eu-central-1",
+        "eu-west-1"
+      ],
+      "tags": {
+        "Name": "{{ user `ami_prefix` }}{{ isotime | clean_resource_name }}",
+        "base-ami": "{{ user `base_ami` }}",
+        "created-at": "{{ timestamp }}"
+      }
+    }
+  ],
+
+  "provisioners": [
+    {
+      "type": "ansible",
+      "user": "ec2-user",
+      "playbook_file": "playbooks/prereq.yml"
+    },
+    {
+      "type": "ansible",
+      "user": "ec2-user",
+      "playbook_file": "playbooks/cis_l1.yml",
+      "extra_arguments": ["--skip-tags", "rule_1.1.18", "--extra-vars", "amazonlinux2cis_xwindows_required=true"]
+    },
+    {
+      "type": "ansible",
+      "user": "ec2-user",
+      "playbook_file": "playbooks/cis_extra.yml"
+    },
+    {
+      "type": "ansible",
+      "user": "ec2-user",
+      "playbook_file": "playbooks/common.yml"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "if [ \"{{ user `yum_update` }}\" == \"true\" ]; then sudo yum update -y; fi"
+      ]
+    },
+    {
+      "type": "ansible",
+      "user": "ec2-user",
+      "playbook_file": "playbooks/enable_fips.yml",
+      "extra_arguments": [ "--extra-vars", "enable_fips={{user `enable_fips`}}" ]
+    },
+    {
+      "type": "shell",
+      "script": "scripts/iptables.sh",
+      "execute_command": "chmod +x {{.Path}}; {{ .Vars }} sudo -E {{.Path}}",
+      "environment_vars": [
+        "PRE_USERDATA={{ user `pre_userdata` }}"
+      ]
+    }
+  ]
+}

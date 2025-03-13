@@ -1,0 +1,6 @@
+[submodule "roles/AmazonLinux-2023-CIS"]
+	path = roles/AmazonLinux-2023-CIS
+	url = https://github.com/ansible-lockdown/AMAZON2023-CIS.git
+[submodule "playbooks/common"]
+	path = playbooks/common
+	url = https://git-codecommit.us-east-1.amazonaws.com/v1/repos/live-aws-percipio-playbooks

@@ -1,0 +1,6 @@
+##
+# The repository manifest file used within the code promotion process.
+# @see https://skillsoftdev.atlassian.net/wiki/spaces/AWS/pages/1574436887/Repository+Manifest
+##
+---
+version: 0.11.15

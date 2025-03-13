@@ -1,0 +1,7 @@
+##
+# CODEOWNERS GITHUB FILE
+# Anyone listed in here is the default owner of the repo.
+# @see https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+##
+
+*       @DRE-IaC/IaC

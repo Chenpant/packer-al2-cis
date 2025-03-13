@@ -1,0 +1,12 @@
+ansible==4.3.0
+ansible-lint>=5.1.2
+boto==2.49.0
+boto3==1.20.52
+docker==4.3.1
+molecule==3.4.0
+molecule-docker==1.1.0
+molecule-ec2==0.4
+kubernetes==10.0.1
+openshift==0.10.2
+yamllint==1.23.0
+PyYAML<6,>=5.1
