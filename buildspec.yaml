@@ -11,61 +11,42 @@ version: 0.2
 env:
   shell: bash
   variables:
-    AL2_CIS_COMMIT_ID: 'xyz'
     PACKER_VERSION: '1.9.4'
     PACKER_FILE: 'pipeline.json'
 
 phases:
   install:
-    runtime-versions:
-      python: 3.9  # Use a supported runtime
     commands:
-      - aws sts get-caller-identity  # Debugging: Who is running the script?
-      
-      # Ensure required dependencies are installed
-      - yum install -y git unzip wget
-      
-      # Initialize GitHub submodules if needed
-      - git submodule update --init --recursive
-      
-      # Install pip pre-requisites
-      - export PATH=$PATH:/root/.local/bin
-      - pip install -r requirements.txt
-
-      # Install Packer
-      - wget -q https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip
-      - unzip -q packer_${PACKER_VERSION}_linux_amd64.zip
-      - export PATH=/usr/local/bin:$PATH
-      - mv packer /usr/local/bin/packer
-      - packer version
-
-      # Validate the Packer pipeline file
-      - make verify
+      - echo "Installing dependencies..."
+      - yum install -y docker
+      - service docker start
+      - docker version
 
   pre_build:
     commands:
       - echo "Pre-build phase: Setting up tags and environment"
       - |
-        TAG="latest"  # Ensure TAG is initialized
-        if [ "$TARGET_ENV" == "int" ]; then
-          TAG=int
-        elif [ "$ACTION" == "init" ] || [ "$PUBLISH" == "1" ]; then
+        TAG="latest"  # Ensure TAG is always set
+        if [[ "$TARGET_ENV" == "int" ]]; then
+          TAG="int"
+        elif [[ "$ACTION" == "init" ]] || [[ "$PUBLISH" == "1" ]]; then
           TAG=$(git describe --tags "$CODEBUILD_RESOLVED_SOURCE_VERSION" || echo "latest")
         else
           echo "No pre_build steps required."
         fi
+      - echo "Using TAG: $TAG"
 
   build:
     commands:
       - echo "Build phase: Executing build commands"
       - |
-        if [ "$ACTION" == "init" ]; then
+        if [[ "$ACTION" == "init" ]]; then
           echo "Nothing to build during initialization."
-        elif [ "$REDEPLOY" == "1" ]; then
+        elif [[ "$REDEPLOY" == "1" ]]; then
           make redeploy
-        elif [ "$PUBLISH" == "1" ]; then
+        elif [[ "$PUBLISH" == "1" ]]; then
           make publish_all
-        elif [ "$TARGET_ENV" == "int" ]; then
+        elif [[ "$TARGET_ENV" == "int" ]]; then
           PACKER_FILE=local.json make build_all
         else
           make build_all
