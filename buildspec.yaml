@@ -46,6 +46,7 @@ phases:
     commands:
       - echo "Pre-build phase: Setting up tags and environment"
       - |
+        TAG="latest"  # Ensure TAG is initialized
         if [ "$TARGET_ENV" == "int" ]; then
           TAG=int
         elif [ "$ACTION" == "init" ] || [ "$PUBLISH" == "1" ]; then
