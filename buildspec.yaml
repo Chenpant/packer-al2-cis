@@ -1,4 +1,4 @@
-ersion: 0.2
+version: 0.2
 
 env:
   shell: bash
@@ -7,6 +7,8 @@ phases:
   install:
     runtime-versions:
       docker: 18
+  variables:
+    PACKER_VERSION: '1.9.4'
 
     commands:
       # Used for debug purposes, show who is running this script.
